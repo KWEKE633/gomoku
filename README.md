@@ -4,15 +4,15 @@
 
 ## 設計
 
-**[ GUI / 入力 / 描画 ]**   GomokuGame (SFML)
-        ↓
-**[ ゲーム管理 ]**        Board
-        ↓
-**[ ルール判定 ]**        capture / 勝利 / 禁じ手
-        ↓
-**[ AIエンジン ]**        AI (Negamax + αβ + TT)
-        ↓
-**[ 評価関数 ]**          Pattern + Capture
+**[ GUI / 入力 / 描画 ]**   GomokuGame (SFML)  
+        ↓  
+**[ ゲーム管理 ]**        Board  
+        ↓  
+**[ ルール判定 ]**        capture / 勝利 / 禁じ手  
+        ↓  
+**[ AIエンジン ]**        AI (Negamax + αβ + TT)  
+        ↓  
+**[ 評価関数 ]**          Pattern + Capture  
 
 
 # 動作環境
@@ -29,6 +29,12 @@ git clone <repository-url>
 cd gomoku
 
 # ビルド
+./run_docker.sh
+
+"http://localhost:8080にアクセス"
+
+"仮想環境内で以下を実行"
+
 make
 
 # 実行
