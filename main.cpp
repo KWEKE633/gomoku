@@ -1,5 +1,4 @@
-//　42の環境で動かすにはSFML ver2.5に調整しなければいけない
-//（今回のDockerfileとLinux的に）
+// Linux環境 SFML ver 2.5版
 
 #include <SFML/Graphics.hpp>
 #include <vector>
@@ -16,10 +15,10 @@
 
 
 constexpr int BOARD_SIZE = 19;
-constexpr int CELL_SIZE  = 35;
-constexpr int OFFSET     = 40;
-constexpr unsigned int WINDOW_W = 750;
-constexpr unsigned int WINDOW_H = 850;
+constexpr int CELL_SIZE  = 20; // 30
+constexpr int OFFSET     = 30; // 40
+constexpr unsigned int WINDOW_W = 600; // 750
+constexpr unsigned int WINDOW_H = 700; // 850
 
 // AI
 constexpr double TIME_LIMIT_SEC = 0.48;
@@ -591,10 +590,16 @@ private:
 
 public:
     GomokuGame() 
-        : window(sf::VideoMode({WINDOW_W, WINDOW_H}), "42 Gomoku AI - High Defense"),
-          statusText(font),
-          guideText(font),
-          timerText(font)
+        : window(sf::VideoMode(WINDOW_W, WINDOW_H), "42 Gomoku AI - High Defense"),
+          statusText(),
+          guideText(),
+          timerText(),
+          mode(GameMode::HumanVsAI),
+          userColor(BLACK),
+          gameOver(false),
+          winner(NONE),
+          replayIndex(-1),
+          isReplayMode(false)
     {
         window.setFramerateLimit(60);
         loadFont();
@@ -612,13 +617,13 @@ public:
 private:
     void loadFont() {
         const char* fonts[] = {
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", // Linux標準パスを優先
             "/System/Library/Fonts/Supplemental/Arial.ttf",
-            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
             "C:\\Windows\\Fonts\\arial.ttf",
             "Arial.ttf"
         };
-        for (auto path : fonts) {
-            if (font.openFromFile(path)) return;
+        for (int i = 0; i < 4; ++i) {
+            if (font.loadFromFile(fonts[i])) return;
         }
         std::cerr << "Warning: No font found." << std::endl;
     }
@@ -627,47 +632,48 @@ private:
         statusText.setFont(font);
         statusText.setCharacterSize(24);
         statusText.setFillColor(COLOR_TEXT);
-        statusText.setPosition({20.f, (float)WINDOW_H - 90.f});
+        statusText.setPosition(20.f, (float)WINDOW_H - 90.f);
 
         guideText.setFont(font);
         guideText.setCharacterSize(16);
         guideText.setFillColor(sf::Color(50, 50, 50));
-        guideText.setPosition({20.f, (float)WINDOW_H - 50.f});
+        guideText.setPosition(20.f, (float)WINDOW_H - 50.f);
         guideText.setString("Keys: [1]PvAI [2]PvP [3]SwapColor [L]Replay [R]Reset [ESC]Quit");
 
         timerText.setFont(font);
         timerText.setCharacterSize(20);
         timerText.setFillColor(sf::Color::Red);
-        timerText.setPosition({(float)WINDOW_W - 150.f, (float)WINDOW_H - 90.f});
+        timerText.setPosition((float)WINDOW_W - 150.f, (float)WINDOW_H - 90.f);
     }
 
     void processEvents() {
-        while (const std::optional event = window.pollEvent()) {
-            if (event->is<sf::Event::Closed>()) {
+        sf::Event event;
+        while (window.pollEvent(event)) {
+            if (event.type == sf::Event::Closed) {
                 window.close();
             }
             
-            if (const auto* keyEvent = event->getIf<sf::Event::KeyPressed>()) {
-                if (keyEvent->code == sf::Keyboard::Key::Escape) window.close();
-                if (keyEvent->code == sf::Keyboard::Key::R) resetGame();
+            if (event.type == sf::Event::KeyPressed) {
+                if (event.key.code == sf::Keyboard::Escape) window.close();
+                if (event.key.code == sf::Keyboard::R) resetGame();
                 
                 if (!isReplayMode) {
-                    if (keyEvent->code == sf::Keyboard::Key::Num1) { mode = GameMode::HumanVsAI; resetGame(); }
-                    if (keyEvent->code == sf::Keyboard::Key::Num2) { mode = GameMode::HumanVsHuman; resetGame(); }
-                    if (keyEvent->code == sf::Keyboard::Key::Num3) { userColor = (userColor == BLACK ? WHITE : BLACK); resetGame(); }
-                    if (keyEvent->code == sf::Keyboard::Key::L) startReplay();
+                    if (event.key.code == sf::Keyboard::Num1) { mode = GameMode::HumanVsAI; resetGame(); }
+                    if (event.key.code == sf::Keyboard::Num2) { mode = GameMode::HumanVsHuman; resetGame(); }
+                    if (event.key.code == sf::Keyboard::Num3) { userColor = (userColor == BLACK ? WHITE : BLACK); resetGame(); }
+                    if (event.key.code == sf::Keyboard::L) startReplay();
                 } else {
-                    if (keyEvent->code == sf::Keyboard::Key::L) stopReplay();
-                    if (keyEvent->code == sf::Keyboard::Key::Right) replayNext();
-                    if (keyEvent->code == sf::Keyboard::Key::Left) replayPrev();
+                    if (event.key.code == sf::Keyboard::L) stopReplay();
+                    if (event.key.code == sf::Keyboard::Right) replayNext();
+                    if (event.key.code == sf::Keyboard::Left) replayPrev();
                 }
             }
 
-            if (const auto* mouseEvent = event->getIf<sf::Event::MouseButtonPressed>()) {
-                if (mouseEvent->button == sf::Mouse::Button::Left) {
+            if (event.type == sf::Event::MouseButtonPressed) {
+                if (event.mouseButton.button == sf::Mouse::Left) {
                     if (!isReplayMode && !gameOver) {
                         if (mode == GameMode::HumanVsAI && board.currentTurn != userColor) return;
-                        handleMouseClick(mouseEvent->position.x, mouseEvent->position.y);
+                        handleMouseClick(event.mouseButton.x, event.mouseButton.y);
                     }
                 }
             }
@@ -732,12 +738,12 @@ private:
         for (int i = 0; i < BOARD_SIZE; ++i) {
             sf::RectangleShape hline(sf::Vector2f(CELL_SIZE * (BOARD_SIZE - 1), 2));
             hline.setFillColor(COLOR_LINE);
-            hline.setPosition({(float)OFFSET, (float)(OFFSET + i * CELL_SIZE)});
+            hline.setPosition((float)OFFSET, (float)(OFFSET + i * CELL_SIZE));
             window.draw(hline);
 
             sf::RectangleShape vline(sf::Vector2f(2, CELL_SIZE * (BOARD_SIZE - 1)));
             vline.setFillColor(COLOR_LINE);
-            vline.setPosition({(float)(OFFSET + i * CELL_SIZE), (float)OFFSET});
+            vline.setPosition((float)(OFFSET + i * CELL_SIZE), (float)OFFSET);
             window.draw(vline);
         }
 
@@ -754,7 +760,7 @@ private:
             sf::CircleShape mark(4);
             mark.setOrigin({4, 4});
             mark.setFillColor(sf::Color::Red);
-            mark.setPosition({(float)(OFFSET + board.lastMove.x * CELL_SIZE), (float)(OFFSET + board.lastMove.y * CELL_SIZE)});
+            mark.setPosition((float)(OFFSET + board.lastMove.x * CELL_SIZE), (float)(OFFSET + board.lastMove.y * CELL_SIZE));
             window.draw(mark);
         }
 
@@ -762,10 +768,11 @@ private:
         window.draw(guideText);
         window.draw(timerText);
 
-        sf::Text capsInfo(font);
+        sf::Text capsInfo;
+        capsInfo.setFont(font);
         capsInfo.setCharacterSize(18);
         capsInfo.setFillColor(COLOR_TEXT);
-        capsInfo.setPosition({(float)WINDOW_W - 200.f, 50.f});
+        capsInfo.setPosition((float)WINDOW_W - 200.f, 50.f);
         capsInfo.setString("Captures:\nBlack: " + std::to_string(board.captures[BLACK]) + "/10\nWhite: " + std::to_string(board.captures[WHITE]) + "/10");
         window.draw(capsInfo);
 
@@ -774,9 +781,9 @@ private:
 
     void drawStone(int y, int x, sf::Color c) {
         sf::CircleShape stone(CELL_SIZE / 2 - 2);
-        stone.setOrigin({(float)(CELL_SIZE / 2 - 2), (float)(CELL_SIZE / 2 - 2)});
+        stone.setOrigin((float)(CELL_SIZE / 2 - 2), (float)(CELL_SIZE / 2 - 2));
         stone.setFillColor(c);
-        stone.setPosition({(float)(OFFSET + x * CELL_SIZE), (float)(OFFSET + y * CELL_SIZE)});
+        stone.setPosition((float)(OFFSET + x * CELL_SIZE), (float)(OFFSET + y * CELL_SIZE));
         stone.setOutlineThickness(1);
         stone.setOutlineColor(sf::Color(50, 50, 50));
         window.draw(stone);
