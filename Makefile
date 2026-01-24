@@ -3,7 +3,7 @@ CXX         = c++
 CXXFLAGS    = -Wall -Wextra -Werror -std=c++17
 SFML_FLAGS  = -lsfml-graphics -lsfml-window -lsfml-system
 
-SRCS        = main.cpp
+SRCS        = main.cpp AI.cpp Board.cpp GomokuGame.cpp Zobrist.cpp
 OBJS        = $(SRCS:.cpp=.o)
 
 all: $(NAME)
