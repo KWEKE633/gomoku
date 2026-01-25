@@ -3,12 +3,13 @@
 #include "Config.hpp"
 #include <cstdint>
 
-class Zobrist {
+class Zobrist
+{
 public:
-    uint64_t table[Config::BOARD_SIZE][Config::BOARD_SIZE][3];
-    uint64_t turnHash;
+	uint64_t table[Config::BOARD_SIZE][Config::BOARD_SIZE][3];
+	uint64_t turnHash;
 
-    Zobrist();
+	Zobrist();
 };
 
 extern const Zobrist zobrist;
