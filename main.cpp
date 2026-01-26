@@ -2,7 +2,7 @@
 
 int main()
 {
-	GomokuGame game;
-	game.run();
-	return 0;
+    GomokuGame game;
+    game.run();
+    return 0;
 }
