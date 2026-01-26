@@ -1,0 +1,12 @@
+# BasedOnStyle: LLVM
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+# ColumnLimit: 0
+MaxEmptyLinesToKeep: 1
+# AllowShortIfStatementsOnASingleLine: false
+# AllowShortLoopsOnASingleLine: false
+# AllowShortFunctionsOnASingleLine: None
+# AllowShortBlocksOnASingleLine: false
+BreakBeforeBraces: Allman
+# IndentCaseLabels: true
