@@ -1,6 +1,5 @@
 #include "GomokuGame.hpp"
 #include <iostream>
-#include <string> // std::to_string用
 
 GomokuGame::GomokuGame()
     : window(sf::VideoMode(Config::WINDOW_W, Config::WINDOW_H),
@@ -133,15 +132,15 @@ void GomokuGame::handleMouseClick(int mx, int my)
 
     if (board.isValid(y, x))
     {
+		if (board.get(y, x) != NONE) {
+            return;
+        }
         if (board.currentTurn == BLACK && board.isDoubleThree(y, x))
         {
             statusText.setString("Forbidden Move (Double-Three)!");
             return;
         }
-        if (board.get(y, x) == NONE)
-        {
-            doMove(y, x);
-        }
+        doMove(y, x);
     }
 }
 
@@ -152,7 +151,7 @@ void GomokuGame::doMove(int y, int x)
 
     Player justMoved = (board.currentTurn == BLACK) ? WHITE : BLACK;
 
-    if (board.checkWin(justMoved, true))
+    if (board.checkWin(justMoved))
     {
         gameOver = true;
         winner = justMoved;

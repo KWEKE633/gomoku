@@ -84,37 +84,36 @@ void Board::undoMove(int y, int x, const MoveResult &res)
     currentTurn = prevPlayer;
 }
 
-bool Board::checkWin(Player p, bool checkCanBreak)
-{
-    if (captures[p] >= 10)
-        return true;
+bool Board::checkWin(Player p) {
+	if (captures[p] >= 10) return true;
 
-    int dy[] = {0, 1, 1, 1};
-    int dx[] = {1, 0, 1, -1};
+	int dy[] = {0, 1, 1, 1};
+	int dx[] = {1, 0, 1, -1};
 
-    for (int y = 0; y < Config::BOARD_SIZE; ++y)
-    {
-        for (int x = 0; x < Config::BOARD_SIZE; ++x)
-        {
-            if (grid[y][x] != p)
-                continue;
+	for (int y = 0; y < Config::BOARD_SIZE; ++y) {
+		for (int x = 0; x < Config::BOARD_SIZE; ++x) {
+			if (grid[y][x] != p) continue;
 
-            for (int i = 0; i < 4; ++i)
-            {
-                int count = 1;
-                int ty = y + dy[i], tx = x + dx[i];
-                while (get(ty, tx) == p)
-                {
-                    count++;
-                    ty += dy[i];
-                    tx += dx[i];
-                }
+			for (int i = 0; i < 4; ++i) {
+				// 重複チェックを避けるため、始点のみを処理
+				if (get(y - dy[i], x - dx[i]) == p) continue;
 
-                if (count >= 5)
-                {
-                    if (!checkCanBreak)
-                        return true;
-                    return true;
+				std::vector<std::pair<int, int>> line;
+				int count = 0;
+				int ty = y, tx = x;
+				while (get(ty, tx) == p) {
+					line.push_back({ty, tx});
+					count++;
+					ty += dy[i];
+					tx += dx[i];
+				}
+				if (count >= 5) {
+                    // 5連を発見。
+                    // しかし、「相手がこのラインを破壊できるか」をチェックする
+					if (!canBeBroken(p, line)) {
+						return true; // 破壊できない確定した5連があれば勝利
+					}
+					// 破壊できる場合、このラインでの勝利は成立しない（ゲーム続行）
                 }
             }
         }
@@ -122,64 +121,60 @@ bool Board::checkWin(Player p, bool checkCanBreak)
     return false;
 }
 
-// 禁じ手チェック (黒番のみ: 3-3)
-bool Board::isDoubleThree(int y, int x)
-{
-    if (currentTurn != BLACK)
-        return false;
+// 相手が次の手でこのラインの一部をキャプチャし、かつ
+// 「相手が勝利(10個)」するか「ラインが5個未満になる」なら true を返す
+bool Board::canBeBroken(Player p, const std::vector<std::pair<int, int>>& line) {
+	Player opp = (p == BLACK) ? WHITE : BLACK;
+	int dy8[] = {-1, -1, -1, 0, 0, 1, 1, 1};
+	int dx8[] = {-1, 0, 1, -1, 1, -1, 0, 1};
 
-    grid[y][x] = BLACK;
-    int freeThreeCount = 0;
+	// ライン上の全ての石について、キャプチャされるリスクがあるか調べる
+	for (auto& stone : line) {
+		int y = stone.first;
+		int x = stone.second;
 
-    int dy[] = {0, 1, 1, 1};
-    int dx[] = {1, 0, 1, -1};
-
-    for (int i = 0; i < 4; ++i)
-    {
-        if (checkFreeThree(y, x, dy[i], dx[i]))
-        {
-            freeThreeCount++;
+		// 石の周囲8方向をチェック
+		for (int i = 0; i < 8; ++i) {
+			if (get(y - dy8[i], x - dx8[i]) == opp &&
+				get(y + dy8[i], x + dx8[i]) == p &&
+				get(y + dy8[i] * 2, x + dx8[i] * 2) == NONE) 
+			{
+				if (captures[opp] + 2 >= 10) return true;
+				if (line.size() - 2 < 5) return true; 
+            }
         }
     }
-    grid[y][x] = NONE;
-
-    return (freeThreeCount >= 2);
+    return false; // どの箇所もキャプチャできない、またはキャプチャされても勝ちが揺るがない
 }
 
-bool Board::checkFreeThree(int y, int x, int dy, int dx)
-{
-    int count = 1;
-    int tY, tX;
+bool Board::isDoubleThree(int y, int x) {
+	if (currentTurn != BLACK) return false;
+	grid[y][x] = BLACK;
+	int freeThreeCount = 0;
+	int dy[] = {0, 1, 1, 1}, dx[] = {1, 0, 1, -1};
+	for (int i = 0; i < 4; ++i) if (checkFreeThree(y, x, dy[i], dx[i])) freeThreeCount++;
+	grid[y][x] = NONE;
+	return freeThreeCount >= 2;
+}
 
-    // 正方向
-    tY = y + dy;
-    tX = x + dx;
-    while (get(tY, tX) == BLACK)
-    {
-        count++;
-        tY += dy;
-        tX += dx;
-    }
-    int space1Y = tY, space1X = tX;
+// 飛び三対応版 checkFreeThree
+bool Board::checkFreeThree(int y, int x, int dy, int dx) {
+	int pattern[9];
+	for (int k = -4; k <= 4; ++k) {
+		Player p = get(y + dy * k, x + dx * k);
+		pattern[k + 4] = (p == currentTurn || (k==0)) ? 1 : (p == NONE ? 0 : 2);
+	}
+	// 連続3 (.XXX.)
+	if (pattern[3]==0 && pattern[4]==1 && pattern[5]==1 && pattern[6]==1 && pattern[7]==0) return true;
+	if (pattern[2]==0 && pattern[3]==1 && pattern[4]==1 && pattern[5]==1 && pattern[6]==0) return true;
+	if (pattern[1]==0 && pattern[2]==1 && pattern[3]==1 && pattern[4]==1 && pattern[5]==0) return true;
+	// 飛び3 (.X.XX. / .XX.X.)
+	if (pattern[5]==0 && pattern[6]==1 && pattern[7]==1 && pattern[3]==0 && pattern[8]==0) return true;
+	if (pattern[5]==1 && pattern[6]==0 && pattern[7]==1 && pattern[3]==0 && pattern[8]==0) return true;
+	if (pattern[3]==0 && pattern[2]==1 && pattern[1]==1 && pattern[5]==0 && pattern[0]==0) return true;
+	if (pattern[3]==1 && pattern[2]==0 && pattern[1]==1 && pattern[5]==0 && pattern[0]==0) return true;
+	// 中飛び (.X.X.X.)
+	if (pattern[3]==0 && pattern[2]==1 && pattern[5]==0 && pattern[6]==1 && pattern[1]==0 && pattern[7]==0) return true;
 
-    // 負方向
-    tY = y - dy;
-    tX = x - dx;
-    while (get(tY, tX) == BLACK)
-    {
-        count++;
-        tY -= dy;
-        tX -= dx;
-    }
-    int space2Y = tY, space2X = tX;
-
-    if (count == 3)
-    {
-        // 両端が空いているか
-        if (get(space1Y, space1X) == NONE && get(space2Y, space2X) == NONE)
-        {
-            return true;
-        }
-    }
-    return false;
+	return false;
 }

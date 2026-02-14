@@ -18,10 +18,14 @@ class Board
     void reset();
     MoveResult makeMove(int y, int x);
     void undoMove(int y, int x, const MoveResult &res);
-    bool checkWin(Player p, bool checkCanBreak = true);
+	// 勝利判定（即時勝利判定含む）
+	bool checkWin(Player p);
     bool isDoubleThree(int y, int x);
     bool isValid(int y, int x) const;
     Player get(int y, int x) const;
+	// 指定されたラインが相手の次の手でキャプチャされ、かつ
+	// 「相手の勝利(10個)」または「5連の破壊」につながるか判定する
+	bool canBeBroken(Player p, const std::vector<std::pair<int, int>>& line);
 
   private:
     bool checkFreeThree(int y, int x, int dy, int dx);
